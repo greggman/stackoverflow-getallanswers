@@ -7,8 +7,8 @@ const questionsById = {};
 
 var optionSpec = {
   options: [
-   { option: 'in',               type: 'String',  required: true, description: 'xml file to read'},
-   { option: 'out',              type: 'String',  required: true, description: 'json file to write'},
+   { option: 'in',  alias: 'i',  type: 'String',  required: true, description: 'xml file to read'},
+   { option: 'out', alias: 'o',  type: 'String',  required: true, description: 'json file to write'},
    { option: 'userid',           type: 'String',  description: 'userid'},
    { option: 'username',         type: 'String',  description: 'username'},
    { option: 'help', alias: 'h', type: 'Boolean', description: 'displays help'},
@@ -46,9 +46,9 @@ if (!args.userid && !args.username) {
   printHelp();
 }
 
-function scan(fn) {
+function scan(filename, fn) {
   return new Promise((resolve, reject) => {
-    const inFile = fs.createReadStream(args.in);
+    const inFile = fs.createReadStream(filename);
     const xmlStream = flow(inFile);
     xmlStream.on('tag:row', fn);
     xmlStream.on('end', () => {
@@ -60,7 +60,7 @@ function scan(fn) {
 
 async function main() {
   console.log('scan1', args.in);
-  await scan((post) => {
+  await scan(args.in, (post) => {
     if (post.posttypeid === "2" &&
         ((args.userid && post.owneruserid === args.userid) ||
          (args.username && post.ownerusername === args.username))) {
@@ -70,7 +70,7 @@ async function main() {
   });
 
   console.log('scan2', args.in);
-  await scan((post) => {
+  await scan(args.in, (post) => {
     if (userAnswersbyParentId[post.id]) {
       questionsById[post.id] = post;
     } else if (userAnswersbyParentId[post.parentid]) {
@@ -83,6 +83,7 @@ async function main() {
     questionsById,
     answersByParentId,
   };
+  console.log('write', args.out);
   fs.writeFileSync(args.out, JSON.stringify(data, null, 2));
   console.log('done');
 }
