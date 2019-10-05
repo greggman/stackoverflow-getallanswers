@@ -61,5 +61,9 @@ for (const [questionId, question] of db.quesionsById) {
 }
 ```
 
+## More info
+
+https://meta.stackexchange.com/questions/2677/database-schema-documentation-for-the-public-data-dump-and-sede
+
 
 
