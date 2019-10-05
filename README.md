@@ -35,7 +35,7 @@ some scripts to get all answers for a particular user
    python getallanswers.py --posts=path/to/Posts.xml --posthistory=path/to/Posthistory.xml --out=path/to/output.json --userid=22656
    ```
 
-   200gig gile, took 8 hours. The Posts.xml file neeeds to be read twice as not enough ram keep all in memory.
+   200gig file, took 8 hours. The Posts.xml file neeeds to be read twice as not enough ram keep all in memory.
    First scan finds answers by specified user. Second scan finds questions for answers found in first scan.
    Third scan reads Posthistory.xml to get the original markdown content as the user typed it, not the
    converted html which is all that's stored in Posts.xml
