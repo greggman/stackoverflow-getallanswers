@@ -22,7 +22,7 @@ class UserAnswersStreamHandler(xml.sax.handler.ContentHandler):
 
     def startElement(self, name, attrs):
         if name == 'row':
-            if 'PostTypeId' in attrs and attrs['PostTypeId'] == '2' and 'PostOwnerId' in attrs and attrs['PostOwnerId'] == self.userId:
+            if 'PostTypeId' in attrs and attrs['PostTypeId'] == '2' and 'OwnerUserId' in attrs and attrs['OwnerUserId'] == self.userId:
                 parentId = attrs['ParentId']
                 if not parentId in self.userAnswersByParentId:
                     self.userAnswersByParentId[parentId] = []
@@ -87,36 +87,40 @@ if __name__ == '__main__':
         print "--out json file not specified"
         sys.exit(1)
 
+    print "searching for", options.userid
+
     parser = xml.sax.make_parser()
     userAnswersByParentId = {}
     answersByParentId = {}
     questionsById = {}
+    historyById = {}
 
-    print "scan 1:", options.posts
+    print "scan 1: find anssers by userid", options.userid, "in", options.posts
     ush = UserAnswersStreamHandler(options.userid, userAnswersByParentId);
     parser.setContentHandler(ush)
     with open(options.posts) as f:
         parser.parse(f)
+    print "found", len(userAnswersByParentId), "answers by userid", options.userid
 
-    print "scan 2:", options.posts
-    qsh = QuestionStreamHandler(userAnswersByParentId, answersByParentId, questionsById)
-    parser.setContentHandler(qsh)
-    with open(options.posts) as f:
-        parser.parse(f)
+    if len(userAnswersByParentId) > 0:
+        print "scan 2:", options.posts
+        qsh = QuestionStreamHandler(userAnswersByParentId, answersByParentId, questionsById)
+        parser.setContentHandler(qsh)
+        with open(options.posts) as f:
+            parser.parse(f)
 
-    historyById = {}
-    ids = {}
-    for k in questionsById.keys():
-        ids[k] = True
-    for k,answers in answersByParentId.items():
-        for answer in answers:
-            ids[answer['Id']] = True
+        ids = {}
+        for k in questionsById.keys():
+            ids[k] = True
+        for k,answers in answersByParentId.items():
+            for answer in answers:
+                ids[answer['Id']] = True
 
-    print "scan 3:", options.posthistory
-    hsh = HistoryStreamHandler(ids, historyById)
-    parser.setContentHandler(hsh)
-    with open(options.posthistory) as f:
-        parser.parse(f)
+        print "scan 3:", options.posthistory
+        hsh = HistoryStreamHandler(ids, historyById)
+        parser.setContentHandler(hsh)
+        with open(options.posthistory) as f:
+            parser.parse(f)
 
     print "write json:", options.out
     with open(options.out, "w") as file:
