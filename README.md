@@ -41,23 +41,31 @@ some scripts to get all answers for a particular user
    converted html which is all that's stored in Posts.xml
 
 Result is a .json file with an object of "questionsById", an object of "answersByParentId", and
-an object of "historyById" so for each question you can look up the answer and history for both
+an object of "historyById" so for each question you can look up the answers and history for both
 
 ```js
+const userId = '22656';
 const db = JSON.parse(fs.readFileSync(filename, {encoding: 'utf8'));
-for (const [questionId, question] of db.quesionsById) {
+for (const [questionId, question] of db.questionsById) {
 
-  const questionHistory = db.historyById[questionId]
+  applyHistory(question, db.historyById[questionId])
   console.log('=================================');
   console.log(JSON.stringify(question, null, 2));
-  console.log(JSON.stringify(questionHistory, null, 2));
 
-  const answers = db.answersByParentId[questionId];
+  const answers = db.answersByParentId[questionId](a => a.OwnerUserId === userId);
   for (const answer of answers) {
-     const answerHistory = db.historyByID[answer.Id];
+     applyHistory(answer, db.historyById[answer.Id]);
      console.log('---------------------------------');
      console.log(JSON.stringify(answer, null, 2));
-     console.log(JSON.stringify(answerHistory, null, 2));
+  }
+}
+
+// puts the markdown for this post in post.Text
+function applyHistory(post, history) {
+  if (history.length) {
+    history = history.sort((a, b) => a.CreationDate > b.CreationDate ? -1 : (a.CreationDate < b.CreationDate ? 1 : 0))
+    post.Text = history[0].Text;
+  }
 }
 ```
 
