@@ -95,7 +95,7 @@ if __name__ == '__main__':
     questionsById = {}
     historyById = {}
 
-    print "scan 1: find anssers by userid", options.userid, "in", options.posts
+    print "scan 1: find answers by userid", options.userid, "in", options.posts
     ush = UserAnswersStreamHandler(options.userid, userAnswersByParentId);
     parser.setContentHandler(ush)
     with open(options.posts) as f:
