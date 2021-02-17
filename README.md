@@ -9,8 +9,9 @@ some scripts to get all answers for a particular user
    https://archive.org/details/stackexchange
 
    You probably only want `stackoverflow.com-Posts.7z` and `stackoverflow.com-Posthistory.7z`
+   and optionally `stackoverflow.com-Users.7z`.
 
-3. Uncompress both of them
+3. Uncompress them
 
    ```sh
    7z x stackoverflow.com-Posts.7z
@@ -40,25 +41,32 @@ some scripts to get all answers for a particular user
    Third scan reads Posthistory.xml to get the original markdown content as the user typed it, not the
    converted html which is all that's stored in Posts.xml
 
+   You can optionally also give it the `Users.xml` file if you downloaded it with `--users=path/to/Users.xml`
+
 Result is a .json file with an object of "questionsById", an object of "answersByParentId", and
-an object of "historyById" so for each question you can look up the answers and history for both
+an object of "historyById", and optionally an object of "usersById" so for each question you can
+look up the answers and history for both
 
 ```js
 const userId = '22656';
 const db = JSON.parse(fs.readFileSync(filename, {encoding: 'utf8'));
 for (const [questionId, question] of db.questionsById) {
 
+  question.user = db.usersById[question.OwnerUserId];
+
   applyHistory(question, db.historyById[questionId])
   console.log('=================================');
   console.log(JSON.stringify(question, null, 2));
 
-  const answers = db.answersByParentId[questionId](a => a.OwnerUserId === userId);
+
+  const answers = db.answersByParentId[questionId].filter(a => a.OwnerUserId === userId);
   for (const answer of answers) {
-     applyHistory(answer, db.historyById[answer.Id]);
-     console.log('---------------------------------');
-     console.log(JSON.stringify(answer, null, 2));
+    answer.user = db.usersById[answer.OwnerUserId];
+    applyHistory(answer, db.historyById[answer.Id]);
+    console.log('---------------------------------');
+    console.log(JSON.stringify(answer, null, 2));
   }
-}
+}w
 
 // puts the markdown for this post in post.Text
 function applyHistory(post, history) {

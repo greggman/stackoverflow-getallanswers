@@ -63,6 +63,20 @@ class HistoryStreamHandler(xml.sax.handler.ContentHandler):
                         self.postsById[id] = []
                     self.postsById[id].append(dictFromAttrs(attrs))
 
+#
+class UsersStreamHandler(xml.sax.handler.ContentHandler):
+
+    def __init__(self, _ids, _usersById):
+        self.ids = _ids
+        self.usersById = _usersById
+
+    def startElement(self, name, attrs):
+        if name == 'row':
+            if 'Id' in attrs:
+              id = attrs['Id']
+              if id in self.ids:
+                self.usersById[id] = dictFromAttrs(attrs)
+
 
 
 if __name__ == '__main__':
@@ -70,6 +84,7 @@ if __name__ == '__main__':
     parser = OptionParser()
     parser.add_option("--posts",       dest="posts",       help="posts.xml file", )
     parser.add_option("--posthistory", dest="posthistory", help="posthistory.xml file", )
+    parser.add_option("--users",       dest="users",       help="users.xml file (optional)", )
     parser.add_option("--userid",      dest="userid",      help="userid", )
     parser.add_option("--out",         dest="out",         help="json to write", )
 
@@ -94,6 +109,7 @@ if __name__ == '__main__':
     answersByParentId = {}
     questionsById = {}
     historyById = {}
+    usersById = {}
 
     print "scan 1: find answers by userid", options.userid, "in", options.posts
     ush = UserAnswersStreamHandler(options.userid, userAnswersByParentId);
@@ -103,7 +119,7 @@ if __name__ == '__main__':
     print "found", len(userAnswersByParentId), "answers by userid", options.userid
 
     if len(userAnswersByParentId) > 0:
-        print "scan 2:", options.posts
+        print "scan 2: find questions for answers in", options.posts
         qsh = QuestionStreamHandler(userAnswersByParentId, answersByParentId, questionsById)
         parser.setContentHandler(qsh)
         with open(options.posts) as f:
@@ -116,10 +132,23 @@ if __name__ == '__main__':
             for answer in answers:
                 ids[answer['Id']] = True
 
-        print "scan 3:", options.posthistory
+        print "scan 3: get markdown for Qs&As in ", options.posthistory
         hsh = HistoryStreamHandler(ids, historyById)
         parser.setContentHandler(hsh)
         with open(options.posthistory) as f:
+            parser.parse(f)
+
+        if options.users != None:
+          print "scan 4: get user info for Q&As in ", options.users
+          userIds = {}
+          for item in questionsById.values():
+            userIds[item['OwnerUserId']] = True
+          for answers in answersByParentId.values():
+            for answer in answers:
+              userIds[answer['OwnerUserId']] = True
+          ush = UsersStreamHandler(userIds, usersById)
+          parser.setContentHandler(ush)
+          with open(options.users) as f:
             parser.parse(f)
 
     print "write json:", options.out
@@ -128,6 +157,7 @@ if __name__ == '__main__':
             'questionsById': questionsById,
             'answersByParentId': answersByParentId,
             'historyById': historyById,
+            'usersById': usersById,
         }, indent = 2))
 
 
