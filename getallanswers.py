@@ -1,11 +1,13 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-import time
-import xml.sax
 import copy
 import json
+import os
+import pickle
 import sys
+import time
+import xml.sax
 from optparse import OptionParser
 
 def dictFromAttrs(attrs):
@@ -77,7 +79,16 @@ class UsersStreamHandler(xml.sax.handler.ContentHandler):
               if id in self.ids:
                 self.usersById[id] = dictFromAttrs(attrs)
 
+def save(filename, obj):
+  f = open(filename, 'wb')
+  pickle.dump(obj, f)
+  f.close()
 
+def load(filename):
+  f = open(filename, 'rb')
+  obj = pickle.load(f)
+  f.close()
+  return obj
 
 if __name__ == '__main__':
     # use default ``xml.sax.expatreader``
@@ -87,6 +98,7 @@ if __name__ == '__main__':
     parser.add_option("--users",       dest="users",       help="users.xml file (optional)", )
     parser.add_option("--userid",      dest="userid",      help="userid", )
     parser.add_option("--out",         dest="out",         help="json to write", )
+    parser.add_option("--temp",        dest="temp",        help="save/load temp files", action="store_true", default=False)
 
     (options, args) = parser.parse_args()
     if options.posts == None:
@@ -105,6 +117,10 @@ if __name__ == '__main__':
     print "searching for", options.userid
 
     parser = xml.sax.make_parser()
+    userAnswersByParentIdFilename = 'userAnswersByParentId.pickle'
+    answersByParentIdFilename = 'answersByParentId.pickle'
+    questionsByIdFilename = 'questionsById.pickle'
+    historyByIdFilename = 'historyById.pickle'
     userAnswersByParentId = {}
     answersByParentId = {}
     questionsById = {}
@@ -112,18 +128,38 @@ if __name__ == '__main__':
     usersById = {}
 
     print "scan 1: find answers by userid", options.userid, "in", options.posts
-    ush = UserAnswersStreamHandler(options.userid, userAnswersByParentId);
-    parser.setContentHandler(ush)
-    with open(options.posts) as f:
-        parser.parse(f)
+    if options.temp:
+      if os.path.exists(userAnswersByParentIdFilename):
+        userAnswersByParentId = load(userAnswersByParentIdFilename)
+
+    if len(userAnswersByParentId) == 0:
+      ush = UserAnswersStreamHandler(options.userid, userAnswersByParentId)
+      parser.setContentHandler(ush)
+      with open(options.posts) as f:
+          parser.parse(f)
+
+      if options.temp:
+        save(userAnswersByParentIdFilename, userAnswersByParentId)
+
     print "found", len(userAnswersByParentId), "answers by userid", options.userid
 
     if len(userAnswersByParentId) > 0:
-        print "scan 2: find questions for answers in", options.posts
-        qsh = QuestionStreamHandler(userAnswersByParentId, answersByParentId, questionsById)
-        parser.setContentHandler(qsh)
-        with open(options.posts) as f:
-            parser.parse(f)
+
+        print "scan 2: get questions for answers in", options.posts
+        if options.temp:
+          if os.path.exists(answersByParentIdFilename) and os.path.exists(questionsByIdFilename):
+            answersByParentId = load(answersByParentIdFilename)
+            questionsById = load(questionsByIdFilename)
+
+        if len(answersByParentId) == 0:
+          qsh = QuestionStreamHandler(userAnswersByParentId, answersByParentId, questionsById)
+          parser.setContentHandler(qsh)
+          with open(options.posts) as f:
+              parser.parse(f)
+
+          if options.temp:
+            save(answersByParentIdFilename, answersByParentId)
+            save(questionsByIdFilename, questionsById)
 
         ids = {}
         for k in questionsById.keys():
@@ -132,20 +168,37 @@ if __name__ == '__main__':
             for answer in answers:
                 ids[answer['Id']] = True
 
-        print "scan 3: get markdown for Qs&As in ", options.posthistory
-        hsh = HistoryStreamHandler(ids, historyById)
-        parser.setContentHandler(hsh)
-        with open(options.posthistory) as f:
-            parser.parse(f)
+        print "scan 3: get markdown for Qs&As in", options.posthistory
+        if options.temp:
+          if os.path.exists(historyByIdFilename):
+            historyById = load(historyByIdFilename)
+
+        if len(historyById) == 0:
+          hsh = HistoryStreamHandler(ids, historyById)
+          parser.setContentHandler(hsh)
+          with open(options.posthistory) as f:
+              parser.parse(f)
+
+          if options.temp:
+            save(historyByIdFilename, historyById)
 
         if options.users != None:
-          print "scan 4: get user info for Q&As in ", options.users
+          print "scan 4: get user info for Qs&As in", options.users
+
+          # NOTE: If a user has deleted their account, stack overflow
+          # no longer connects their questions or answers to their
+          # account id.
+
           userIds = {}
           for item in questionsById.values():
-            userIds[item['OwnerUserId']] = True
+            if 'OwnerUserId' in item:
+              userIds[item['OwnerUserId']] = True
+ 
           for answers in answersByParentId.values():
             for answer in answers:
-              userIds[answer['OwnerUserId']] = True
+              if 'OwnerUserId' in answer:
+                userIds[answer['OwnerUserId']] = True
+ 
           ush = UsersStreamHandler(userIds, usersById)
           parser.setContentHandler(ush)
           with open(options.users) as f:

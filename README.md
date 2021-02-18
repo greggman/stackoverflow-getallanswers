@@ -47,6 +47,10 @@ Result is a .json file with an object of "questionsById", an object of "answersB
 an object of "historyById", and optionally an object of "usersById" so for each question you can
 look up the answers and history for both
 
+NOTE: If a user has deleted their account, stack overflow
+no longer connects their questions or answers to their
+account id so looking up a user will fail.
+
 ```js
 const userId = '22656';
 const db = JSON.parse(fs.readFileSync(filename, {encoding: 'utf8'));
@@ -58,7 +62,8 @@ for (const [questionId, question] of db.questionsById) {
   console.log('=================================');
   console.log(JSON.stringify(question, null, 2));
 
-
+  // take only the answers by userId from the list of
+  // all answers to this question.
   const answers = db.answersByParentId[questionId].filter(a => a.OwnerUserId === userId);
   for (const answer of answers) {
     answer.user = db.usersById[answer.OwnerUserId];
@@ -76,6 +81,20 @@ function applyHistory(post, history) {
   }
 }
 ```
+
+## temp files
+
+If you pass in `--temp` then, each scan of file .xml files
+will write out temp files of the results of the scan. If
+you run again with `--temp` then, if the files exist they will be loaded instead of re-scanning. This is to allow you
+to fix/adjust steps 2, 3, and 4 without having to repeat
+previous steps.
+
+It's up to you to delete file files.
+
+* Step 1 writes `userAnswersByParentId.pickle`
+* Step 2 writes `answersByParentId.pickle` and `questionsById.pickle`
+* Step 3 writes `historyById.pickle`
 
 ## More info
 
