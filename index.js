@@ -1,7 +1,7 @@
 const fs = require('fs');
 const flow = require('xml-flow')
 
-const userAnswersbyParentId = {};
+const userAnswersByParentId = {};
 const answersByParentId = {};
 const questionsById = {};
 
@@ -64,16 +64,16 @@ async function main() {
     if (post.posttypeid === "2" &&
         ((args.userid && post.owneruserid === args.userid) ||
          (args.username && post.ownerusername === args.username))) {
-      userAnswersbyParentId[post.parentid] = userAnswersbyParentId[post.parentid] || [];
-      userAnswersbyParentId[post.parentid].push(post);
+      userAnswersByParentId[post.parentid] = userAnswersByParentId[post.parentid] || [];
+      userAnswersByParentId[post.parentid].push(post);
     }
   });
 
   console.log('scan2', args.in);
   await scan(args.in, (post) => {
-    if (userAnswersbyParentId[post.id]) {
+    if (userAnswersByParentId[post.id]) {
       questionsById[post.id] = post;
-    } else if (userAnswersbyParentId[post.parentid]) {
+    } else if (userAnswersByParentId[post.parentid]) {
       answersByParentId[post.parentid] = answersByParentId[post.parentid] || [];
       answersByParentId[post.parentid].push(post);
     }
